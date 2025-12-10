@@ -47,17 +47,26 @@ public class MainView {
     private boolean isJsReady = false;
     private final ObjectMapper jsonMapper = new ObjectMapper();
 
+    // [FIX 1] Giữ tham chiếu mạnh (Strong Reference) để tránh bị Garbage Collection
+    private JavaConnector javaConnector;
+
     /**
      * Bridge class to allow JavaScript to call Java methods.
-     * This class MUST be public to be accessible by the WebEngine.
+     * [FIX 2] Chuyển thành 'static' để reflection hoạt động ổn định hơn.
      */
-    public class JavaConnector {
+    public static class JavaConnector {
+        private final MainViewModel viewModel;
+
+        public JavaConnector(MainViewModel viewModel) {
+            this.viewModel = viewModel;
+        }
+
         /**
          * Called when a node is clicked in the graph.
-         *
          * @param url The ID (URL) of the selected node.
          */
         public void onNodeSelected(String url) {
+            System.out.println("JS Callback: Node selected - " + url); // Log để debug
             Platform.runLater(() -> viewModel.selectNodeByUrl(url));
         }
     }
@@ -68,6 +77,9 @@ public class MainView {
     @FXML
     public void initialize() {
         this.viewModel = new MainViewModel();
+
+        // [FIX 3] Khởi tạo object bridge và lưu vào biến instance
+        this.javaConnector = new JavaConnector(viewModel);
 
         setupWebView();
         bindViewModel();
@@ -86,10 +98,14 @@ public class MainView {
             if (newState == Worker.State.SUCCEEDED) {
                 isJsReady = true;
                 JSObject window = (JSObject) webEngine.executeScript("window");
-                window.setMember("javaConnector", new JavaConnector());
+
+                // [FIX 4] Truyền biến instance đã khai báo (không dùng new JavaConnector() ở đây)
+                window.setMember("javaConnector", this.javaConnector);
             }
         });
     }
+
+    // ... (Các phần code còn lại giữ nguyên: bindViewModel, injectNode, injectEdge, onStartClick, v.v...)
 
     private void bindViewModel() {
         txtUrl.textProperty().bindBidirectional(viewModel.urlInputProperty());
@@ -167,9 +183,6 @@ public class MainView {
         }
     }
 
-    /**
-     * Handles the Start button click event.
-     */
     @FXML
     private void onStartClick() {
         if (isJsReady) {
@@ -179,17 +192,11 @@ public class MainView {
         viewModel.startCrawl();
     }
 
-    /**
-     * Handles the Stop button click event.
-     */
     @FXML
     private void onStopClick() {
         viewModel.stopCrawl();
     }
 
-    /**
-     * Handles the Scan This Node button click event.
-     */
     @FXML
     private void onScanNodeClick() {
         SiteNode selected = viewModel.selectedNodeProperty().get();
@@ -201,9 +208,6 @@ public class MainView {
         }
     }
 
-    /**
-     * Handles the Open Browser button click event.
-     */
     @FXML
     private void onOpenBrowserClick() {
         String url = tfNodeUrl.getText();
