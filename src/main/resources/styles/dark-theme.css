@@ -1,0 +1,39 @@
+.root {
+    -fx-base: #1e1e1e;
+    -fx-accent: #007acc;
+    -fx-default-button: #007acc;
+    -fx-focus-color: #007acc;
+    -fx-faint-focus-color: transparent;
+    -fx-font-family: "Segoe UI", sans-serif;
+}
+
+.toolbar {
+    -fx-background-color: #252526;
+    -fx-border-color: #3e3e42;
+    -fx-border-width: 0 0 1 0;
+}
+
+.list-view {
+    -fx-background-color: #252526;
+}
+
+.list-cell {
+    -fx-text-fill: #cccccc;
+}
+
+.list-cell:even {
+    -fx-background-color: #2d2d30;
+}
+
+.list-cell:odd {
+    -fx-background-color: #252526;
+}
+
+.status-bar {
+    -fx-background-color: #007acc;
+    -fx-text-fill: white;
+}
+
+.graph-container {
+    -fx-background-color: #1e1e1e;
+}

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.vinhtt.sitemapcrawler.view.MainView"
+            prefHeight="800.0" prefWidth="1200.0">
+
+    <top>
+        <HBox spacing="10" alignment="CENTER_LEFT" styleClass="toolbar">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+            <Label text="URL:"/>
+            <TextField fx:id="txtUrl" HBox.hgrow="ALWAYS" promptText="https://example.com"/>
+            <Button fx:id="btnStart" text="Start Crawl" onAction="#onStartClick"/>
+            <Button fx:id="btnStop" text="Stop" onAction="#onStopClick" disable="true"/>
+        </HBox>
+    </top>
+
+    <center>
+        <StackPane styleClass="graph-container">
+            <Label text="Graph Visualization Area (Canvas)"/>
+        </StackPane>
+    </center>
+
+    <bottom>
+        <VBox>
+            <ListView fx:id="listLogs" prefHeight="150"/>
+            <HBox spacing="10" styleClass="status-bar">
+                <padding>
+                    <Insets top="5" right="5" bottom="5" left="5"/>
+                </padding>
+                <Label fx:id="lblStatus" text="Ready"/>
+            </HBox>
+        </VBox>
+    </bottom>
+
+</BorderPane>
