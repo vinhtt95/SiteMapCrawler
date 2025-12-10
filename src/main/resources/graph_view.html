@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Site Map Graph</title>
+    <script type="text/javascript" src="https://visjs.github.io/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style type="text/css">
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #1e1e1e; /* Dark theme background */
+        }
+        #mynetwork {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+<div id="mynetwork"></div>
+<script type="text/javascript">
+    var container = document.getElementById('mynetwork');
+    var nodes = new vis.DataSet([]);
+    var edges = new vis.DataSet([]);
+    var data = { nodes: nodes, edges: edges };
+
+    var options = {
+        nodes: {
+            shape: 'dot',
+            size: 16,
+            font: { color: '#ffffff' },
+            borderWidth: 2
+        },
+        edges: {
+            width: 1,
+            color: { color: '#555555', highlight: '#007acc' },
+            arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+            smooth: { type: 'continuous' }
+        },
+        physics: {
+            stabilization: false,
+            barnesHut: {
+                gravitationalConstant: -2000,
+                springConstant: 0.04,
+                springLength: 95
+            }
+        },
+        groups: {
+            INTERNAL: { color: { background: '#007acc', border: '#005f9e' } },
+            EXTERNAL: { color: { background: '#ff9800', border: '#e65100' }, shape: 'diamond' },
+            GROUPED:  { color: { background: '#9c27b0', border: '#7b1fa2' }, shape: 'hexagon', size: 25 }
+        }
+    };
+
+    var network = new vis.Network(container, data, options);
+
+    // Function called from Java to add/update nodes
+    function updateGraph(nodeData, edgeData) {
+        if (nodeData) {
+            try {
+                var nodeObj = JSON.parse(nodeData);
+                if (!nodes.get(nodeObj.id)) {
+                    nodes.add(nodeObj);
+                }
+            } catch(e) { console.error(e); }
+        }
+        if (edgeData) {
+            try {
+                var edgeObj = JSON.parse(edgeData);
+                // Simple check to avoid dupes (not perfect but helpful)
+                var existing = edges.get({
+                    filter: function (item) {
+                        return item.from === edgeObj.from && item.to === edgeObj.to;
+                    }
+                });
+                if (existing.length === 0) {
+                    edges.add(edgeObj);
+                }
+            } catch(e) { console.error(e); }
+        }
+    }
+
+    // Function called from Java to clear graph
+    function clearGraph() {
+        nodes.clear();
+        edges.clear();
+    }
+</script>
+</body>
+</html>

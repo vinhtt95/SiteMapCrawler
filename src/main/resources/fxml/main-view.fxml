@@ -3,6 +3,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.web.WebView?>
 
 <BorderPane xmlns="http://javafx.com/javafx"
             xmlns:fx="http://javafx.com/fxml"
@@ -22,9 +23,7 @@
     </top>
 
     <center>
-        <StackPane styleClass="graph-container">
-            <Label text="Graph Visualization Area (Canvas)"/>
-        </StackPane>
+        <WebView fx:id="graphWebView"/>
     </center>
 
     <bottom>
