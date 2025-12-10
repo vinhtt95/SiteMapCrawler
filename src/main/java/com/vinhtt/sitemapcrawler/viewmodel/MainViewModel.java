@@ -19,7 +19,7 @@ import java.util.Map;
  * ViewModel for the MainView. Manages UI state and delegates logic to services.
  *
  * @author vinhtt
- * @version 1.3
+ * @version 1.4
  */
 public class MainViewModel {
 
@@ -33,20 +33,15 @@ public class MainViewModel {
     private final ObjectProperty<SiteNode> latestNode = new SimpleObjectProperty<>();
     private final ObjectProperty<String> latestEdge = new SimpleObjectProperty<>();
 
+    // Key is URL
     private final Map<String, SiteNode> nodeCache = new HashMap<>();
     private final ObjectProperty<SiteNode> selectedNode = new SimpleObjectProperty<>();
 
-    /**
-     * Initializes the MainViewModel.
-     */
     public MainViewModel() {
         this.crawlerService = new PlaywrightCrawlerService();
         this.siteGraph = new SimpleDirectedGraph<>(DefaultEdge.class);
     }
 
-    /**
-     * Command to start the crawling process.
-     */
     public void startCrawl() {
         if (isCrawling.get()) return;
 
@@ -71,9 +66,6 @@ public class MainViewModel {
         );
     }
 
-    /**
-     * Command to stop the crawling process.
-     */
     public void stopCrawl() {
         crawlerService.stop();
         isCrawling.set(false);
@@ -88,6 +80,8 @@ public class MainViewModel {
     public void selectNodeByUrl(String url) {
         if (nodeCache.containsKey(url)) {
             selectedNode.set(nodeCache.get(url));
+        } else {
+            logs.add(0, "⚠ Warning: Node not found in cache: " + url);
         }
     }
 
@@ -97,6 +91,7 @@ public class MainViewModel {
                 siteGraph.addVertex(node);
             }
         }
+        // Store in cache for lookup later
         nodeCache.put(node.getUrl(), node);
 
         Platform.runLater(() -> {

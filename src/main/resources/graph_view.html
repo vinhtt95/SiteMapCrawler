@@ -71,11 +71,15 @@
 
     var network = new vis.Network(container, data, options);
 
+    // Event listener for clicks
     network.on("click", function (params) {
         if (params.nodes.length > 0) {
             var nodeId = params.nodes[0];
+            // Check if Java bridge exists before calling
             if (window.javaConnector) {
                 window.javaConnector.onNodeSelected(nodeId);
+            } else {
+                console.error("JavaConnector not found on window object.");
             }
         }
     });
@@ -87,7 +91,7 @@
                 if (!nodes.get(nodeObj.id)) {
                     nodes.add(nodeObj);
                 }
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error("Node error: " + e); }
         }
         if (edgeData) {
             try {
@@ -100,7 +104,7 @@
                 if (existing.length === 0) {
                     edges.add(edgeObj);
                 }
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error("Edge error: " + e); }
         }
     }
 
