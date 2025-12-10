@@ -19,17 +19,18 @@ import java.util.regex.Pattern;
  * Includes intelligent grouping for list items and better naming for external nodes.
  *
  * @author vinhtt
- * @version 1.1
+ * @version 1.2
  */
 public class PlaywrightCrawlerService implements ICrawlerService {
 
     private volatile boolean isRunning;
     private final Set<String> visitedUrls = Collections.synchronizedSet(new HashSet<>());
 
-    // Pattern to detect repetitive list items (e.g., /product/123, /item/abc)
-    private static final Pattern LIST_ITEM_PATTERN = Pattern.compile("(.*/)([^/]+/?)$");
+    private Playwright playwright;
+    private Browser browser;
+    private BrowserContext context;
 
-    // Cache to track how many times a "base path" has been seen to trigger grouping
+    private static final Pattern LIST_ITEM_PATTERN = Pattern.compile("(.*/)([^/]+/?)$");
     private final Map<String, Integer> patternCounter = new HashMap<>();
     private static final int GROUPING_THRESHOLD = 3;
 
@@ -38,21 +39,23 @@ public class PlaywrightCrawlerService implements ICrawlerService {
                               Consumer<SiteNode> onNodeAdded,
                               Consumer<String> onEdgeAdded,
                               Runnable onFinished) {
+
+        cleanup();
+
         isRunning = true;
         visitedUrls.clear();
         patternCounter.clear();
 
         CompletableFuture.runAsync(() -> {
-            try (Playwright playwright = Playwright.create();
-                 Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
-                         .setChannel("chrome") // Use system Chrome to avoid crash
-                         .setHeadless(false))) {
-
-                BrowserContext context = browser.newContext();
+            try {
+                playwright = Playwright.create();
+                browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
+                        .setChannel("chrome")
+                        .setHeadless(false));
+                context = browser.newContext();
                 Page page = context.newPage();
 
                 Queue<CrawlTask> queue = new LinkedList<>();
-                // Root node
                 String rootDomain = getDomainName(startUrl);
                 queue.add(new CrawlTask(startUrl, 0));
 
@@ -69,7 +72,6 @@ public class PlaywrightCrawlerService implements ICrawlerService {
                             title = current.url;
                         }
 
-                        // Send INTERNAL node
                         SiteNode node = new SiteNode(current.url, title, NodeType.INTERNAL);
                         Platform.runLater(() -> onNodeAdded.accept(node));
 
@@ -79,35 +81,26 @@ public class PlaywrightCrawlerService implements ICrawlerService {
                                 String href = link.getAttribute("href");
                                 if (href == null || href.isEmpty() || href.startsWith("#") || href.startsWith("javascript")) continue;
 
-                                // Normalize URL
                                 String absoluteUrl = resolveUrl(current.url, href);
                                 if (absoluteUrl == null) continue;
 
                                 if (absoluteUrl.startsWith(startUrl) || absoluteUrl.contains(rootDomain)) {
-                                    // INTERNAL LINK
-
-                                    // Logic: Smart Grouping
                                     String groupUrl = tryGetGroupUrl(absoluteUrl);
                                     if (groupUrl != null) {
-                                        // This is a list item, link to the GROUP node instead
                                         SiteNode groupNode = new SiteNode(groupUrl, "List: " + getPathOnly(groupUrl) + "*", NodeType.GROUPED);
                                         Platform.runLater(() -> {
                                             onNodeAdded.accept(groupNode);
                                             onEdgeAdded.accept(current.url + " -> " + groupUrl);
                                         });
-                                        // Do NOT add to queue (stop crawling list items to save resources)
                                     } else {
-                                        // Normal internal link
                                         queue.add(new CrawlTask(absoluteUrl, current.depth + 1));
                                         String finalUrl = absoluteUrl;
                                         Platform.runLater(() -> onEdgeAdded.accept(current.url + " -> " + finalUrl));
                                     }
 
                                 } else {
-                                    // EXTERNAL LINK
-                                    // Logic: Meaningful Name (Domain)
                                     String domain = getDomainName(absoluteUrl);
-                                    String externalNodeId = "ext://" + domain; // Virtual ID for grouping external links by domain
+                                    String externalNodeId = "ext://" + domain;
 
                                     SiteNode extNode = new SiteNode(externalNodeId, domain + " (Ext)", NodeType.EXTERNAL);
 
@@ -125,6 +118,7 @@ public class PlaywrightCrawlerService implements ICrawlerService {
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
+                cleanup();
                 Platform.runLater(onFinished);
             }
         });
@@ -136,22 +130,28 @@ public class PlaywrightCrawlerService implements ICrawlerService {
     }
 
     /**
-     * Attempts to identify if a URL belongs to a list pattern.
-     * If matched > threshold, returns the Group ID.
+     * Cleans up Playwright resources.
      */
+    public void cleanup() {
+        try {
+            if (context != null) { context.close(); context = null; }
+            if (browser != null) { browser.close(); browser = null; }
+            if (playwright != null) { playwright.close(); playwright = null; }
+        } catch (Exception e) {
+            System.err.println("Error cleaning up Playwright: " + e.getMessage());
+        }
+    }
+
     private String tryGetGroupUrl(String url) {
         Matcher matcher = LIST_ITEM_PATTERN.matcher(url);
         if (matcher.find()) {
-            String basePath = matcher.group(1); // e.g., "https://site.com/products/"
-            // Only group if the last part looks like an ID (digit) or we have seen many similar paths
+            String basePath = matcher.group(1);
             String lastPart = matcher.group(2);
 
-            // Heuristic: If last part is numeric, it's likely an item ID -> Group immediately
             if (lastPart.matches("\\d+/?")) {
                 return basePath;
             }
 
-            // Heuristic: Accumulate count
             patternCounter.put(basePath, patternCounter.getOrDefault(basePath, 0) + 1);
             if (patternCounter.get(basePath) > GROUPING_THRESHOLD) {
                 return basePath;

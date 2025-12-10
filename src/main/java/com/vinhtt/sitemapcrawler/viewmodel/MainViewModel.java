@@ -11,13 +11,15 @@ import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.SimpleDirectedGraph;
 
-import java.util.ArrayList; // Thêm import này
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * ViewModel for the MainView. Manages UI state and delegates logic to services.
  *
  * @author vinhtt
- * @version 1.1
+ * @version 1.2
  */
 public class MainViewModel {
 
@@ -30,6 +32,9 @@ public class MainViewModel {
     private final Graph<SiteNode, DefaultEdge> siteGraph;
     private final ObjectProperty<SiteNode> latestNode = new SimpleObjectProperty<>();
     private final ObjectProperty<String> latestEdge = new SimpleObjectProperty<>();
+
+    private final Map<String, SiteNode> nodeCache = new HashMap<>();
+    private final ObjectProperty<SiteNode> selectedNode = new SimpleObjectProperty<>();
 
     /**
      * Initializes the MainViewModel.
@@ -47,10 +52,10 @@ public class MainViewModel {
 
         isCrawling.set(true);
         logs.clear();
+        nodeCache.clear();
         statusMessage.set("Crawling started...");
 
         synchronized (siteGraph) {
-            // [FIXED] Tạo bản sao danh sách vertices trước khi xóa để tránh ConcurrentModificationException
             siteGraph.removeAllVertices(new ArrayList<>(siteGraph.vertexSet()));
         }
 
@@ -75,15 +80,27 @@ public class MainViewModel {
         statusMessage.set("Stopped by user.");
     }
 
+    /**
+     * Finds and selects a node from the cache based on its URL.
+     *
+     * @param url The URL of the node to select.
+     */
+    public void selectNodeByUrl(String url) {
+        if (nodeCache.containsKey(url)) {
+            selectedNode.set(nodeCache.get(url));
+        }
+    }
+
     private void handleNodeAdded(SiteNode node) {
         synchronized (siteGraph) {
             if (!siteGraph.containsVertex(node)) {
                 siteGraph.addVertex(node);
             }
         }
+        nodeCache.put(node.getUrl(), node);
 
         Platform.runLater(() -> {
-            logs.add("Found Node: " + node.getTitle() + " [" + node.getType() + "]");
+            logs.add("Found: " + node.getTitle());
             latestNode.set(node);
         });
     }
@@ -98,4 +115,5 @@ public class MainViewModel {
     public StringProperty statusMessageProperty() { return statusMessage; }
     public ObjectProperty<SiteNode> latestNodeProperty() { return latestNode; }
     public ObjectProperty<String> latestEdgeProperty() { return latestEdge; }
+    public ObjectProperty<SiteNode> selectedNodeProperty() { return selectedNode; }
 }

@@ -11,7 +11,7 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #1e1e1e; /* Dark theme background */
+            background-color: #1e1e1e;
         }
         #mynetwork {
             width: 100%;
@@ -30,34 +30,56 @@
     var options = {
         nodes: {
             shape: 'dot',
-            size: 16,
-            font: { color: '#ffffff' },
-            borderWidth: 2
+            size: 20,
+            font: {
+                color: '#ffffff',
+                size: 14,
+                face: 'Segoe UI'
+            },
+            borderWidth: 2,
+            shadow: true
         },
         edges: {
-            width: 1,
-            color: { color: '#555555', highlight: '#007acc' },
+            width: 1.5,
+            color: { color: '#666666', highlight: '#00ccff' },
             arrows: { to: { enabled: true, scaleFactor: 0.5 } },
-            smooth: { type: 'continuous' }
+            smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.4 }
         },
         physics: {
             stabilization: false,
-            barnesHut: {
-                gravitationalConstant: -2000,
-                springConstant: 0.04,
-                springLength: 95
-            }
+            solver: 'forceAtlas2Based',
+            forceAtlas2Based: {
+                gravitationalConstant: -100,
+                centralGravity: 0.005,
+                springLength: 200,
+                springConstant: 0.05,
+                damping: 0.4
+            },
+            minVelocity: 0.75
         },
         groups: {
             INTERNAL: { color: { background: '#007acc', border: '#005f9e' } },
             EXTERNAL: { color: { background: '#ff9800', border: '#e65100' }, shape: 'diamond' },
-            GROUPED:  { color: { background: '#9c27b0', border: '#7b1fa2' }, shape: 'hexagon', size: 25 }
+            GROUPED:  { color: { background: '#9c27b0', border: '#7b1fa2' }, shape: 'hexagon', size: 30 }
+        },
+        interaction: {
+            hover: true,
+            tooltipDelay: 200,
+            zoomView: true
         }
     };
 
     var network = new vis.Network(container, data, options);
 
-    // Function called from Java to add/update nodes
+    network.on("click", function (params) {
+        if (params.nodes.length > 0) {
+            var nodeId = params.nodes[0];
+            if (window.javaConnector) {
+                window.javaConnector.onNodeSelected(nodeId);
+            }
+        }
+    });
+
     function updateGraph(nodeData, edgeData) {
         if (nodeData) {
             try {
@@ -70,7 +92,6 @@
         if (edgeData) {
             try {
                 var edgeObj = JSON.parse(edgeData);
-                // Simple check to avoid dupes (not perfect but helpful)
                 var existing = edges.get({
                     filter: function (item) {
                         return item.from === edgeObj.from && item.to === edgeObj.to;
@@ -83,7 +104,6 @@
         }
     }
 
-    // Function called from Java to clear graph
     function clearGraph() {
         nodes.clear();
         edges.clear();
