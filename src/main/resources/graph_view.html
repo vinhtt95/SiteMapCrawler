@@ -60,7 +60,8 @@
         groups: {
             INTERNAL: { color: { background: '#007acc', border: '#005f9e' } },
             EXTERNAL: { color: { background: '#ff9800', border: '#e65100' }, shape: 'diamond', size: 25 },
-            GROUPED:  { color: { background: '#9c27b0', border: '#7b1fa2' }, shape: 'hexagon', size: 30 }
+            GROUPED:  { color: { background: '#9c27b0', border: '#7b1fa2' }, shape: 'hexagon', size: 30 },
+            PENDING:  { color: { background: '#333333', border: '#aaaaaa' }, shape: 'dot' }
         },
         interaction: {
             hover: true,
@@ -71,15 +72,13 @@
 
     var network = new vis.Network(container, data, options);
 
-    // Event listener for clicks
     network.on("click", function (params) {
         if (params.nodes.length > 0) {
             var nodeId = params.nodes[0];
-            // Check if Java bridge exists before calling
             if (window.javaConnector) {
                 window.javaConnector.onNodeSelected(nodeId);
             } else {
-                console.error("JavaConnector not found on window object.");
+                console.log("JavaConnector object not found");
             }
         }
     });
@@ -88,10 +87,8 @@
         if (nodeData) {
             try {
                 var nodeObj = JSON.parse(nodeData);
-                if (!nodes.get(nodeObj.id)) {
-                    nodes.add(nodeObj);
-                }
-            } catch(e) { console.error("Node error: " + e); }
+                nodes.update(nodeObj);
+            } catch(e) { }
         }
         if (edgeData) {
             try {
@@ -104,7 +101,7 @@
                 if (existing.length === 0) {
                     edges.add(edgeObj);
                 }
-            } catch(e) { console.error("Edge error: " + e); }
+            } catch(e) { }
         }
     }
 

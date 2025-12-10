@@ -1,6 +1,7 @@
 package com.vinhtt.sitemapcrawler.view;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.vinhtt.sitemapcrawler.model.NodeType;
 import com.vinhtt.sitemapcrawler.model.SiteNode;
 import com.vinhtt.sitemapcrawler.viewmodel.MainViewModel;
 import javafx.application.Platform;
@@ -23,7 +24,7 @@ import java.util.Map;
  * Handles interaction with WebView (Vis.js) via JavaScript calls and manages the property sidebar.
  *
  * @author vinhtt
- * @version 1.4
+ * @version 1.5
  */
 public class MainView {
 
@@ -39,6 +40,7 @@ public class MainView {
     @FXML private Label lblNodeTitle;
     @FXML private TextField tfNodeUrl;
     @FXML private Label lblNodeType;
+    @FXML private Button btnScanNode;
 
     private MainViewModel viewModel;
     private WebEngine webEngine;
@@ -47,28 +49,22 @@ public class MainView {
 
     /**
      * Bridge class to allow JavaScript to call Java methods.
-     * Must be public and static to avoid reflection issues in some JDK versions.
+     * This class MUST be public to be accessible by the WebEngine.
      */
-    public static class JavaConnector {
-        private final MainView mainView;
-
-        public JavaConnector(MainView mainView) {
-            this.mainView = mainView;
-        }
-
+    public class JavaConnector {
         /**
          * Called when a node is clicked in the graph.
+         *
          * @param url The ID (URL) of the selected node.
          */
         public void onNodeSelected(String url) {
-            // Log to UI to verify click is working
-            Platform.runLater(() -> {
-                mainView.viewModel.getLogs().add(0, "🖱 Clicked: " + url);
-                mainView.viewModel.selectNodeByUrl(url);
-            });
+            Platform.runLater(() -> viewModel.selectNodeByUrl(url));
         }
     }
 
+    /**
+     * Initializes the controller after root element has been processed.
+     */
     @FXML
     public void initialize() {
         this.viewModel = new MainViewModel();
@@ -81,21 +77,16 @@ public class MainView {
         webEngine = graphWebView.getEngine();
         webEngine.setJavaScriptEnabled(true);
 
-        // Load the HTML template
         URL url = getClass().getResource("/graph_view.html");
         if (url != null) {
             webEngine.load(url.toExternalForm());
-        } else {
-            viewModel.getLogs().add("Error: Could not find graph_view.html");
         }
 
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
                 isJsReady = true;
-                // Inject Java object into JS window
                 JSObject window = (JSObject) webEngine.executeScript("window");
-                window.setMember("javaConnector", new JavaConnector(this));
-                viewModel.getLogs().add("Graph Engine Ready.");
+                window.setMember("javaConnector", new JavaConnector());
             }
         });
     }
@@ -109,7 +100,10 @@ public class MainView {
         btnStop.disableProperty().bind(viewModel.isCrawlingProperty().not());
         txtUrl.disableProperty().bind(viewModel.isCrawlingProperty());
 
-        // Update Graph when data comes in
+        btnScanNode.disableProperty().bind(
+                viewModel.isCrawlingProperty().or(viewModel.selectedNodeProperty().isNull())
+        );
+
         viewModel.latestNodeProperty().addListener((obs, oldVal, newNode) -> {
             if (newNode != null && isJsReady) {
                 injectNode(newNode);
@@ -122,7 +116,6 @@ public class MainView {
             }
         });
 
-        // Update Sidebar when a node is selected
         viewModel.selectedNodeProperty().addListener((obs, oldNode, newNode) -> {
             if (newNode != null) {
                 propertiesPane.setVisible(true);
@@ -143,10 +136,9 @@ public class MainView {
             jsNode.put("id", node.getUrl());
             jsNode.put("label", node.getTitle().length() > 20 ? node.getTitle().substring(0, 20) + "..." : node.getTitle());
             jsNode.put("group", node.getType().toString());
-            jsNode.put("title", node.getUrl()); // Tooltip
+            jsNode.put("title", node.getUrl());
 
             String json = jsonMapper.writeValueAsString(jsNode);
-            // Escape special characters for JS string
             String safeJson = json.replace("'", "\\'");
             Platform.runLater(() ->
                     webEngine.executeScript("updateGraph('" + safeJson + "', null)")
@@ -175,6 +167,9 @@ public class MainView {
         }
     }
 
+    /**
+     * Handles the Start button click event.
+     */
     @FXML
     private void onStartClick() {
         if (isJsReady) {
@@ -184,11 +179,31 @@ public class MainView {
         viewModel.startCrawl();
     }
 
+    /**
+     * Handles the Stop button click event.
+     */
     @FXML
     private void onStopClick() {
         viewModel.stopCrawl();
     }
 
+    /**
+     * Handles the Scan This Node button click event.
+     */
+    @FXML
+    private void onScanNodeClick() {
+        SiteNode selected = viewModel.selectedNodeProperty().get();
+        if (selected != null) {
+            if (selected.getType() == NodeType.EXTERNAL) {
+                return;
+            }
+            viewModel.scanNode(selected.getUrl());
+        }
+    }
+
+    /**
+     * Handles the Open Browser button click event.
+     */
     @FXML
     private void onOpenBrowserClick() {
         String url = tfNodeUrl.getText();

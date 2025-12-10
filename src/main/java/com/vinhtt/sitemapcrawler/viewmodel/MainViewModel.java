@@ -19,7 +19,7 @@ import java.util.Map;
  * ViewModel for the MainView. Manages UI state and delegates logic to services.
  *
  * @author vinhtt
- * @version 1.4
+ * @version 1.5
  */
 public class MainViewModel {
 
@@ -33,39 +33,56 @@ public class MainViewModel {
     private final ObjectProperty<SiteNode> latestNode = new SimpleObjectProperty<>();
     private final ObjectProperty<String> latestEdge = new SimpleObjectProperty<>();
 
-    // Key is URL
     private final Map<String, SiteNode> nodeCache = new HashMap<>();
     private final ObjectProperty<SiteNode> selectedNode = new SimpleObjectProperty<>();
 
+    /**
+     * Initializes the MainViewModel.
+     */
     public MainViewModel() {
         this.crawlerService = new PlaywrightCrawlerService();
         this.siteGraph = new SimpleDirectedGraph<>(DefaultEdge.class);
     }
 
+    /**
+     * Start crawling from the Input URL (Root).
+     */
     public void startCrawl() {
+        if (isCrawling.get()) return;
+        scanNode(urlInput.get());
+    }
+
+    /**
+     * Scans a specific node (URL).
+     *
+     * @param url The URL to scan.
+     */
+    public void scanNode(String url) {
         if (isCrawling.get()) return;
 
         isCrawling.set(true);
-        logs.clear();
-        nodeCache.clear();
-        statusMessage.set("Crawling started...");
+        statusMessage.set("Scanning: " + url + "...");
 
         synchronized (siteGraph) {
-            siteGraph.removeAllVertices(new ArrayList<>(siteGraph.vertexSet()));
+            if (siteGraph.vertexSet().isEmpty()) {
+                nodeCache.clear();
+            }
         }
 
-        crawlerService.startCrawling(
-                urlInput.get(),
-                2,
+        crawlerService.crawlSinglePage(
+                url,
                 this::handleNodeAdded,
                 this::handleEdgeAdded,
                 () -> {
                     isCrawling.set(false);
-                    statusMessage.set("Crawling finished.");
+                    statusMessage.set("Scan finished for: " + url);
                 }
         );
     }
 
+    /**
+     * Command to stop the crawling process.
+     */
     public void stopCrawl() {
         crawlerService.stop();
         isCrawling.set(false);
@@ -80,8 +97,6 @@ public class MainViewModel {
     public void selectNodeByUrl(String url) {
         if (nodeCache.containsKey(url)) {
             selectedNode.set(nodeCache.get(url));
-        } else {
-            logs.add(0, "⚠ Warning: Node not found in cache: " + url);
         }
     }
 
@@ -91,7 +106,6 @@ public class MainViewModel {
                 siteGraph.addVertex(node);
             }
         }
-        // Store in cache for lookup later
         nodeCache.put(node.getUrl(), node);
 
         Platform.runLater(() -> {

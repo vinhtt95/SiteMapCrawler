@@ -1,35 +1,36 @@
 package com.vinhtt.sitemapcrawler.service;
 
 import com.vinhtt.sitemapcrawler.model.SiteNode;
-import org.jgrapht.Graph;
-import org.jgrapht.graph.DefaultEdge;
-
 import java.util.function.Consumer;
 
 /**
  * Interface defining the contract for the web crawling engine.
  *
  * @author vinhtt
- * @version 1.0
+ * @version 1.5
  */
 public interface ICrawlerService {
 
     /**
-     * Starts the crawling process asynchronously.
+     * Crawls a SINGLE page (no recursion).
      *
-     * @param startUrl     The seed URL to begin crawling.
-     * @param maxDepth     The maximum depth for BFS traversal.
-     * @param onNodeAdded  Callback function triggered when a new node is added.
-     * @param onEdgeAdded  Callback function triggered when a new link is found.
-     * @param onFinished   Callback function triggered when crawling completes.
+     * @param url          The URL to crawl.
+     * @param onNodeAdded  Callback when a node (link) is found.
+     * @param onEdgeAdded  Callback when a connection is found.
+     * @param onFinished   Callback when the single page crawl is done.
      */
-    void startCrawling(String startUrl, int maxDepth,
-                       Consumer<SiteNode> onNodeAdded,
-                       Consumer<String> onEdgeAdded,
-                       Runnable onFinished);
+    void crawlSinglePage(String url,
+                         Consumer<SiteNode> onNodeAdded,
+                         Consumer<String> onEdgeAdded,
+                         Runnable onFinished);
 
     /**
      * Stops the current crawling process.
      */
     void stop();
+
+    /**
+     * Cleans up browser resources.
+     */
+    void cleanup();
 }

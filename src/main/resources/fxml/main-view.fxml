@@ -42,6 +42,9 @@
 
                 <Region VBox.vgrow="ALWAYS"/>
 
+                <Button fx:id="btnScanNode" text="Scan This Node ⚡" onAction="#onScanNodeClick"
+                        maxWidth="Infinity" style="-fx-background-color: #28a745; -fx-text-fill: white; -fx-cursor: hand; -fx-font-weight: bold;"/>
+
                 <Button text="Open in Browser ↗" onAction="#onOpenBrowserClick" maxWidth="Infinity"
                         style="-fx-background-color: #007acc; -fx-text-fill: white; -fx-cursor: hand;"/>
             </VBox>

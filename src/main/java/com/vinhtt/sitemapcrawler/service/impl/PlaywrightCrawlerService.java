@@ -16,11 +16,10 @@ import java.util.regex.Pattern;
 
 /**
  * Implementation of ICrawlerService using Microsoft Playwright.
- * Includes intelligent grouping for list items, better naming for external nodes,
- * and robust resource cleanup.
+ * Modified for manual scanning and proper resource cleanup.
  *
  * @author vinhtt
- * @version 1.3
+ * @version 1.6
  */
 public class PlaywrightCrawlerService implements ICrawlerService {
 
@@ -36,90 +35,88 @@ public class PlaywrightCrawlerService implements ICrawlerService {
     private static final int GROUPING_THRESHOLD = 3;
 
     @Override
-    public void startCrawling(String startUrl, int maxDepth,
-                              Consumer<SiteNode> onNodeAdded,
-                              Consumer<String> onEdgeAdded,
-                              Runnable onFinished) {
+    public void crawlSinglePage(String url,
+                                Consumer<SiteNode> onNodeAdded,
+                                Consumer<String> onEdgeAdded,
+                                Runnable onFinished) {
 
-        cleanup();
-
-        isRunning = true;
-        visitedUrls.clear();
-        patternCounter.clear();
-
-        CompletableFuture.runAsync(() -> {
+        if (playwright == null) {
             try {
                 playwright = Playwright.create();
                 browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
                         .setChannel("chrome")
                         .setHeadless(false));
                 context = browser.newContext();
-                Page page = context.newPage();
+            } catch (Exception e) {
+                e.printStackTrace();
+                return;
+            }
+        }
 
-                Queue<CrawlTask> queue = new LinkedList<>();
-                String rootDomain = getDomainName(startUrl);
-                queue.add(new CrawlTask(startUrl, 0));
+        isRunning = true;
 
-                while (isRunning && !queue.isEmpty()) {
-                    CrawlTask current = queue.poll();
+        CompletableFuture.runAsync(() -> {
+            Page page = null;
+            try {
+                page = context.newPage();
+                page.navigate(url);
 
-                    if (visitedUrls.contains(current.url)) continue;
-                    visitedUrls.add(current.url);
+                String title = page.title();
+                if (title == null || title.isEmpty()) {
+                    title = url;
+                }
 
-                    try {
-                        page.navigate(current.url);
-                        String title = page.title();
-                        if (title == null || title.isEmpty()) {
-                            title = current.url;
+                SiteNode currentNode = new SiteNode(url, title, NodeType.INTERNAL);
+                Platform.runLater(() -> onNodeAdded.accept(currentNode));
+
+                String rootDomain = getDomainName(url);
+                List<ElementHandle> links = page.querySelectorAll("a[href]");
+
+                for (ElementHandle link : links) {
+                    if (!isRunning) break;
+
+                    String href = link.getAttribute("href");
+                    String linkText = link.innerText().trim();
+                    if (linkText.isEmpty()) linkText = href;
+
+                    if (href == null || href.isEmpty() || href.startsWith("#") || href.startsWith("javascript")) continue;
+
+                    String absoluteUrl = resolveUrl(url, href);
+                    if (absoluteUrl == null) continue;
+                    if (absoluteUrl.equals(url)) continue;
+
+                    if (absoluteUrl.contains(rootDomain)) {
+                        String groupUrl = tryGetGroupUrl(absoluteUrl);
+                        if (groupUrl != null) {
+                            SiteNode groupNode = new SiteNode(groupUrl, "[Group] " + getPathOnly(groupUrl), NodeType.GROUPED);
+                            Platform.runLater(() -> {
+                                onNodeAdded.accept(groupNode);
+                                onEdgeAdded.accept(url + " -> " + groupUrl);
+                            });
+                        } else {
+                            SiteNode childNode = new SiteNode(absoluteUrl, linkText, NodeType.PENDING);
+                            Platform.runLater(() -> {
+                                onNodeAdded.accept(childNode);
+                                onEdgeAdded.accept(url + " -> " + absoluteUrl);
+                            });
                         }
-
-                        SiteNode node = new SiteNode(current.url, title, NodeType.INTERNAL);
-                        Platform.runLater(() -> onNodeAdded.accept(node));
-
-                        if (current.depth < maxDepth) {
-                            List<ElementHandle> links = page.querySelectorAll("a[href]");
-                            for (ElementHandle link : links) {
-                                String href = link.getAttribute("href");
-                                if (href == null || href.isEmpty() || href.startsWith("#") || href.startsWith("javascript")) continue;
-
-                                String absoluteUrl = resolveUrl(current.url, href);
-                                if (absoluteUrl == null) continue;
-
-                                if (absoluteUrl.startsWith(startUrl) || absoluteUrl.contains(rootDomain)) {
-                                    String groupUrl = tryGetGroupUrl(absoluteUrl);
-                                    if (groupUrl != null) {
-                                        SiteNode groupNode = new SiteNode(groupUrl, "List: " + getPathOnly(groupUrl) + "*", NodeType.GROUPED);
-                                        Platform.runLater(() -> {
-                                            onNodeAdded.accept(groupNode);
-                                            onEdgeAdded.accept(current.url + " -> " + groupUrl);
-                                        });
-                                    } else {
-                                        queue.add(new CrawlTask(absoluteUrl, current.depth + 1));
-                                        String finalUrl = absoluteUrl;
-                                        Platform.runLater(() -> onEdgeAdded.accept(current.url + " -> " + finalUrl));
-                                    }
-
-                                } else {
-                                    String domain = getDomainName(absoluteUrl);
-                                    String externalNodeId = "ext://" + domain;
-
-                                    SiteNode extNode = new SiteNode(externalNodeId, domain + " (Ext)", NodeType.EXTERNAL);
-
-                                    Platform.runLater(() -> {
-                                        onNodeAdded.accept(extNode);
-                                        onEdgeAdded.accept(current.url + " -> " + externalNodeId);
-                                    });
-                                }
-                            }
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                    } else {
+                        String domain = getDomainName(absoluteUrl);
+                        String extId = "ext://" + domain;
+                        SiteNode extNode = new SiteNode(extId, domain, NodeType.EXTERNAL);
+                        Platform.runLater(() -> {
+                            onNodeAdded.accept(extNode);
+                            onEdgeAdded.accept(url + " -> " + extId);
+                        });
                     }
                 }
+
             } catch (Exception e) {
                 e.printStackTrace();
             } finally {
-                cleanup();
+                if (page != null) {
+                    page.close();
+                }
                 Platform.runLater(onFinished);
             }
         });
@@ -128,11 +125,10 @@ public class PlaywrightCrawlerService implements ICrawlerService {
     @Override
     public void stop() {
         isRunning = false;
+        cleanup();
     }
 
-    /**
-     * Cleans up Playwright resources to free memory.
-     */
+    @Override
     public void cleanup() {
         try {
             if (context != null) { context.close(); context = null; }
@@ -148,11 +144,9 @@ public class PlaywrightCrawlerService implements ICrawlerService {
         if (matcher.find()) {
             String basePath = matcher.group(1);
             String lastPart = matcher.group(2);
-
             if (lastPart.matches("\\d+/?")) {
                 return basePath;
             }
-
             patternCounter.put(basePath, patternCounter.getOrDefault(basePath, 0) + 1);
             if (patternCounter.get(basePath) > GROUPING_THRESHOLD) {
                 return basePath;
@@ -182,6 +176,4 @@ public class PlaywrightCrawlerService implements ICrawlerService {
             return new URI(baseUrl).resolve(href).toString();
         } catch (Exception e) { return null; }
     }
-
-    private record CrawlTask(String url, int depth) {}
 }
