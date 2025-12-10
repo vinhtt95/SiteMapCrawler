@@ -16,10 +16,11 @@ import java.util.regex.Pattern;
 
 /**
  * Implementation of ICrawlerService using Microsoft Playwright.
- * Includes intelligent grouping for list items and better naming for external nodes.
+ * Includes intelligent grouping for list items, better naming for external nodes,
+ * and robust resource cleanup.
  *
  * @author vinhtt
- * @version 1.2
+ * @version 1.3
  */
 public class PlaywrightCrawlerService implements ICrawlerService {
 
@@ -130,7 +131,7 @@ public class PlaywrightCrawlerService implements ICrawlerService {
     }
 
     /**
-     * Cleans up Playwright resources.
+     * Cleans up Playwright resources to free memory.
      */
     public void cleanup() {
         try {

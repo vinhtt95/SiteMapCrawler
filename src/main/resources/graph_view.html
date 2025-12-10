@@ -49,17 +49,17 @@
             stabilization: false,
             solver: 'forceAtlas2Based',
             forceAtlas2Based: {
-                gravitationalConstant: -100,
+                gravitationalConstant: -80,
                 centralGravity: 0.005,
-                springLength: 200,
-                springConstant: 0.05,
-                damping: 0.4
+                springLength: 250,
+                springConstant: 0.1,
+                damping: 0.5
             },
             minVelocity: 0.75
         },
         groups: {
             INTERNAL: { color: { background: '#007acc', border: '#005f9e' } },
-            EXTERNAL: { color: { background: '#ff9800', border: '#e65100' }, shape: 'diamond' },
+            EXTERNAL: { color: { background: '#ff9800', border: '#e65100' }, shape: 'diamond', size: 25 },
             GROUPED:  { color: { background: '#9c27b0', border: '#7b1fa2' }, shape: 'hexagon', size: 30 }
         },
         interaction: {

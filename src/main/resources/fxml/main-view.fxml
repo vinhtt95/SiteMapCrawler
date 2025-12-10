@@ -23,14 +23,16 @@
     </top>
 
     <center>
-        <SplitPane dividerPositions="0.25">
-            <VBox fx:id="propertiesPane" spacing="10" visible="false" managed="false" style="-fx-background-color: #252526; -fx-padding: 15;">
-                <Label text="Node Properties" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: white;"/>
+        <SplitPane dividerPositions="0.75">
+            <WebView fx:id="graphWebView"/>
 
-                <Label text="Title:" style="-fx-text-fill: #888888;"/>
-                <Label fx:id="lblNodeTitle" wrapText="true" style="-fx-text-fill: white; -fx-font-size: 14px;"/>
+            <VBox fx:id="propertiesPane" spacing="10" visible="false" managed="false" style="-fx-background-color: #252526; -fx-padding: 15;">
+                <Label text="Node Details" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: white;"/>
 
                 <Separator/>
+
+                <Label text="Title:" style="-fx-text-fill: #888888;"/>
+                <Label fx:id="lblNodeTitle" wrapText="true" style="-fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold;"/>
 
                 <Label text="URL:" style="-fx-text-fill: #888888;"/>
                 <TextField fx:id="tfNodeUrl" editable="false" style="-fx-background-color: #333; -fx-text-fill: #ccc;"/>
@@ -40,16 +42,15 @@
 
                 <Region VBox.vgrow="ALWAYS"/>
 
-                <Button text="Open in Browser ↗" onAction="#onOpenBrowserClick" maxWidth="Infinity" style="-fx-background-color: #007acc; -fx-text-fill: white;"/>
+                <Button text="Open in Browser ↗" onAction="#onOpenBrowserClick" maxWidth="Infinity"
+                        style="-fx-background-color: #007acc; -fx-text-fill: white; -fx-cursor: hand;"/>
             </VBox>
-
-            <WebView fx:id="graphWebView"/>
         </SplitPane>
     </center>
 
     <bottom>
         <VBox>
-            <ListView fx:id="listLogs" prefHeight="100"/>
+            <ListView fx:id="listLogs" prefHeight="120"/>
             <HBox spacing="10" styleClass="status-bar">
                 <padding>
                     <Insets top="5" right="5" bottom="5" left="5"/>

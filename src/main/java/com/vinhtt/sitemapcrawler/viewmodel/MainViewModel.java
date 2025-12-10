@@ -19,7 +19,7 @@ import java.util.Map;
  * ViewModel for the MainView. Manages UI state and delegates logic to services.
  *
  * @author vinhtt
- * @version 1.2
+ * @version 1.3
  */
 public class MainViewModel {
 

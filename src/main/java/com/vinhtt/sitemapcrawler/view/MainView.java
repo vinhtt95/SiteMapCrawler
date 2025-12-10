@@ -24,7 +24,7 @@ import java.util.Map;
  * Handles interaction with WebView (Vis.js) via JavaScript calls and manages the property sidebar.
  *
  * @author vinhtt
- * @version 1.2
+ * @version 1.3
  */
 public class MainView {
 
