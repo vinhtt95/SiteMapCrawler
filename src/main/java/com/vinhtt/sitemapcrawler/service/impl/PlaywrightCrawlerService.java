@@ -31,8 +31,12 @@ public class PlaywrightCrawlerService implements ICrawlerService {
         visitedUrls.clear();
 
         CompletableFuture.runAsync(() -> {
+            // Updated: Added .setChannel("chrome") to use the installed Google Chrome
+            // This prevents the SEGFAULT error on macOS with bundled Chromium
             try (Playwright playwright = Playwright.create();
-                 Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions().setHeadless(false))) {
+                 Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
+                         .setChannel("chrome") // Tells Playwright to use system Chrome
+                         .setHeadless(false))) {
 
                 BrowserContext context = browser.newContext();
                 Page page = context.newPage();
